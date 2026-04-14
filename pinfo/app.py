@@ -19,11 +19,12 @@ def setup_page():
         pass
 
 
+@st.fragment(run_every="1s")
 def render_header():
     """Rendert den Seitenkopf mit Datum und Uhrzeit."""
     heute = datetime.now()
     datum_str = heute.strftime("%A, %d. %B %Y")
-    uhrzeit_str = heute.strftime("%H:%M")
+    uhrzeit_str = heute.strftime("%H:%M:%S")
 
     st.title(f"📅 {datum_str} · 🕒 {uhrzeit_str} Uhr")
     st.divider()
