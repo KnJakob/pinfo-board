@@ -65,19 +65,18 @@ def render_color_of_the_day(daily_color):
     st.markdown(color_box_html, unsafe_allow_html=True)
 
 
-def render_weather_chart(df, sunrise, sunset, daily_color):
-    """Rendert das Altair-Diagramm für Temperatur, Regen und Tag/Nacht-Zyklus."""
+def render_weather_chart(df, daily_color, now_ts):
+    """Rendert das Altair-Diagramm fuer Temperatur, Regen und Tag/Nacht-Zyklus."""
     st.write(" ")  # Abstand
     st.subheader("📈 Temperatur & Niederschlag")
 
-    # Hintergrund für die Nacht
-    night_areas = pd.DataFrame(
-        {"start": [df["Zeit"].min(), sunset], "end": [sunrise, df["Zeit"].max()]}
-    )
+    # Hintergrund fuer Nachtstunden aus dem API-Flag
+    night_areas = df[df["IstTag"] == 0][["Zeit"]].copy()
+    night_areas["end"] = night_areas["Zeit"] + pd.Timedelta(hours=1)
     rect = (
         alt.Chart(night_areas)
         .mark_rect(opacity=0.15, color="gray")
-        .encode(x="start:T", x2="end:T")
+        .encode(x="Zeit:T", x2="end:T")
     )
 
     # Basis-Chart
@@ -106,7 +105,9 @@ def render_weather_chart(df, sunrise, sunset, daily_color):
 
     # Layer zusammensetzen
     temp_with_night = alt.layer(rect, temp_line, icons)
-    final_chart = alt.layer(rain_chart, temp_with_night).resolve_scale(y="independent")
+    final_chart = alt.layer(rain_chart, temp_with_night).resolve_scale(
+        y="independent"
+    )
 
     st.altair_chart(final_chart, width="stretch")
 
@@ -119,11 +120,8 @@ def main():
     # Daten abrufen
     data = weather.get_weather_data()
 
-    if data:
+    if data and "hourly" in data:
         # Daten aufbereiten
-        sunrise = datetime.fromisoformat(data["daily"]["sunrise"][0])
-        sunset = datetime.fromisoformat(data["daily"]["sunset"][0])
-
         hourly = data["hourly"]
         df = pd.DataFrame(
             {
@@ -132,12 +130,20 @@ def main():
                 "Regen (mm)": hourly["rain"],
                 "Wolken (%)": hourly["cloud_cover"],
                 "Wettercode": hourly["weather_code"],
+                "IstTag": hourly["is_day"],
             }
         )
 
-        df["Icon"] = df["Wettercode"].apply(weather.get_weather_icon)
+        now_ts = datetime.now()
+        current_hour = now_ts.replace(minute=0, second=0, microsecond=0)
+        window_start = current_hour - pd.Timedelta(hours=2)
+        window_end = current_hour + pd.Timedelta(hours=22)
+        window_df = df[(df["Zeit"] >= window_start) & (df["Zeit"] <= window_end)]
+        if not window_df.empty:
+            df = window_df.copy()
 
-        current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+        df["Icon"] = [weather.get_weather_icon(code) for code in df["Wettercode"]]
+
         current_data_df = df[df["Zeit"] == current_hour]
         max_temp = df["Temperatur (°C)"].max()
         daily_color = color.get_color_of_today()
@@ -154,7 +160,7 @@ def main():
                 render_color_of_the_day(daily_color)
 
         # Haupt-Chart rendern
-        render_weather_chart(df, sunrise, sunset, daily_color)
+        render_weather_chart(df, daily_color, now_ts)
 
     else:
         st.error("Es konnten keine Wetterdaten geladen werden.")
