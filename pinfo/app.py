@@ -23,7 +23,6 @@ def render_header():
     datum_str = heute.strftime("%A, %d. %B %Y")
     
     st.title(f"📅 {datum_str}")
-    st.markdown("*Wettervorhersage: 50% Chance, dass wir heute eh lieber drinnen bleiben.* ☕💻")
     st.divider()
 
 def render_current_weather(current_data_df, max_temp):
@@ -90,7 +89,7 @@ def render_weather_chart(df, sunrise, sunset, daily_color):
     )
     
     # Icons über der Temperatur
-    icons = base.mark_text(dy=-15, size=18).encode(
+    icons = base.mark_text(dy=-15, size=18, font="Noto Color Emoji").encode(
         y=alt.Y("Temperatur (°C):Q"),
         text="Icon:N"
     )
