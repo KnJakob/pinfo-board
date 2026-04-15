@@ -65,7 +65,7 @@ def render_color_of_the_day(daily_color):
     st.markdown(color_box_html, unsafe_allow_html=True)
 
 
-def render_weather_chart(df, daily_color, now_ts):
+def render_weather_chart(df, daily_color):
     """Rendert das Altair-Diagramm fuer Temperatur, Regen und Tag/Nacht-Zyklus."""
     st.write(" ")  # Abstand
     st.subheader("📈 Temperatur & Niederschlag")
@@ -98,13 +98,23 @@ def render_weather_chart(df, daily_color, now_ts):
         )
     )
 
+    now_marker = temp_line.mark_point(
+        color="#e53935",
+        fill="#e53935",
+        size=100,
+        opacity=1
+    ).encode(
+        y=alt.Y("Temperatur (°C):Q")
+    ).transform_filter(
+        alt.datum.IstJetzt == 1
+    )
     # Icons über der Temperatur
     icons = base.mark_text(dy=-15, size=18, font="Noto Color Emoji").encode(
         y=alt.Y("Temperatur (°C):Q"), text="Icon:N"
     )
 
     # Layer zusammensetzen
-    temp_with_night = alt.layer(rect, temp_line, icons)
+    temp_with_night = alt.layer(rect, temp_line, icons, now_marker)
     final_chart = alt.layer(rain_chart, temp_with_night).resolve_scale(
         y="independent"
     )
@@ -123,6 +133,7 @@ def main():
     if data and "hourly" in data:
         # Daten aufbereiten
         hourly = data["hourly"]
+        now = pd.Timestamp.now().floor("h")
         df = pd.DataFrame(
             {
                 "Zeit": pd.to_datetime(hourly["time"]),
@@ -131,6 +142,7 @@ def main():
                 "Wolken (%)": hourly["cloud_cover"],
                 "Wettercode": hourly["weather_code"],
                 "IstTag": hourly["is_day"],
+                "IstJetzt": (pd.to_datetime(hourly["time"]).floor("h") == now).astype(int)
             }
         )
 
@@ -160,7 +172,7 @@ def main():
                 render_color_of_the_day(daily_color)
 
         # Haupt-Chart rendern
-        render_weather_chart(df, daily_color, now_ts)
+        render_weather_chart(df, daily_color)
 
     else:
         st.error("Es konnten keine Wetterdaten geladen werden.")
