@@ -2,7 +2,7 @@ import requests
 import streamlit as st
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def get_weather_data():
     # Letzte 2h + naechste 22h fuer ein zukunftsorientiertes Diagramm
     url = "https://api.open-meteo.com/v1/forecast"

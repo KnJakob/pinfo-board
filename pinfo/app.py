@@ -47,6 +47,15 @@ def render_current_weather(current_data_df, max_temp):
 
 def render_color_of_the_day(daily_color):
     """Rendert die rechte Kachel mit der Tagesfarbe."""
+    try:
+        r = int(daily_color[1:3], 16)
+        g = int(daily_color[3:5], 16)
+        b = int(daily_color[5:7], 16)
+        luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        text_color = "#111111" if luminance > 0.6 else "#FFFFFF"
+    except ValueError:
+        text_color = "#FFFFFF"
+
     color_box_html = f"""
     <div style="
         background-color: {daily_color}; 
@@ -98,15 +107,10 @@ def render_weather_chart(df, daily_color):
         )
     )
 
-    now_marker = temp_line.mark_point(
-        color="#e53935",
-        fill="#e53935",
-        size=100,
-        opacity=1
-    ).encode(
-        y=alt.Y("Temperatur (°C):Q")
-    ).transform_filter(
-        alt.datum.IstJetzt == 1
+    now_marker = (
+        temp_line.mark_point(color="#e53935", fill="#e53935", size=100, opacity=1)
+        .encode(y=alt.Y("Temperatur (°C):Q"))
+        .transform_filter(alt.datum.IstJetzt == 1)
     )
     # Icons über der Temperatur
     icons = base.mark_text(dy=-15, size=18, font="Noto Color Emoji").encode(
@@ -115,19 +119,14 @@ def render_weather_chart(df, daily_color):
 
     # Layer zusammensetzen
     temp_with_night = alt.layer(rect, temp_line, icons, now_marker)
-    final_chart = alt.layer(rain_chart, temp_with_night).resolve_scale(
-        y="independent"
-    )
+    final_chart = alt.layer(rain_chart, temp_with_night).resolve_scale(y="independent")
 
     st.altair_chart(final_chart, width="stretch")
 
 
-def main():
-    """Hauptfunktion, die den Ablauf des Dashboards steuert."""
-    setup_page()
-    render_header()
-
-    # Daten abrufen
+@st.fragment(run_every="30s")
+def render_dashboard():
+    """Rendert den Datenbereich und aktualisiert ihn regelmaessig."""
     data = weather.get_weather_data()
 
     if data and "hourly" in data:
@@ -142,7 +141,9 @@ def main():
                 "Wolken (%)": hourly["cloud_cover"],
                 "Wettercode": hourly["weather_code"],
                 "IstTag": hourly["is_day"],
-                "IstJetzt": (pd.to_datetime(hourly["time"]).floor("h") == now).astype(int)
+                "IstJetzt": (pd.to_datetime(hourly["time"]).floor("h") == now).astype(
+                    int
+                ),
             }
         )
 
@@ -176,6 +177,13 @@ def main():
 
     else:
         st.error("Es konnten keine Wetterdaten geladen werden.")
+
+
+def main():
+    """Hauptfunktion, die den Ablauf des Dashboards steuert."""
+    setup_page()
+    render_header()
+    render_dashboard()
 
 
 if __name__ == "__main__":
